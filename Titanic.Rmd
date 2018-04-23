@@ -1,0 +1,176 @@
+---
+title: "Titanic Disaster"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(Amelia)
+library(boot)
+```
+
+# 1) load data
+```{r}
+download.file("https://storage.googleapis.com/kaggle-competitions-data/kaggle/3136/train.csv?GoogleAccessId=web-data@kaggle-161607.iam.gserviceaccount.com&Expires=1524424856&Signature=G1apx7eK8jV%2Fb609BAznhclKpOICmOV2NNH0EkXlCCBIuRTE3ChZVsCmDfi%2BZGfnU9cJPIvUuEECrK4gRfatNTF8taDfYo1cvF22I6KocZKLcvVrP96e550qxkT2LeegL3ezx%2FR%2BZO0nLIam7g8G%2FMXJBHgVoNbGz4K3PZo78GEfazpFBMmwGA%2FjxeHjzq11vr2c6VDRokXr%2Bz%2FcloC8UFqa91z7YBtGKiIrJZbnAvMGmpa2QwF4FFw7mXg6hAllQB6pugRXHN5VF3kx%2FMGsIkBhoksKNNBxjSdiQsxtI5YRyMK0snf5IhGGDQCD3V4fZPE7iMsZc9VGI6DVj8FGfQ%3D%3D", destfile = "/Users/yisongdong/Desktop/Kaggle/Titanic/train.csv")
+download.file("https://storage.googleapis.com/kaggle-competitions-data/kaggle/3136/test.csv?GoogleAccessId=web-data@kaggle-161607.iam.gserviceaccount.com&Expires=1524424840&Signature=G%2Fr7ZqDvJyX8ETOmhY2OdQJ6lrL6xmiLrmw3xLBlYEXUKEy662P8gz%2BmZf33xX5WjsnQHyFSwC6dHpFbDRh5PISS3m0HPGfGv%2BfSvOCxrJW523MAXg6UkEMCIHnp40m4%2BFRO4XpzHEtkUuWi3pnn7z%2BgckCQaik0MNodcYnO32vdkqrfAdwI0HGmahFQzaKlnDOv7n2sarL6rI5VL0%2FIsWYRKaMgaIUcFZ7qqAB8LomUQ7%2FRFQwtjaQyqKsn%2FdylOdaw5RQJLmm9BPKrAp07kZzuvlH%2BB9fIqzSrIiq9gXtZogpatLFcvRKRLGL2Q%2BV788l%2F3EiR9VCkiTvSDMsV%2Fg%3D%3D", destfile = "/Users/yisongdong/Desktop/Kaggle/Titanic/test.csv")
+```
+
+```{r}
+train<-read.csv("/Users/yisongdong/Desktop/Kaggle/Titanic/train.csv",header = TRUE,sep=",")
+test<-read.csv("/Users/yisongdong/Desktop/Kaggle/Titanic/test.csv",header = TRUE,sep=",")
+```
+```{r}
+nrow(train)
+ncol(train)
+```
+
+# 2) Check missing values of train&test data 
+```{r}
+for (i in 1:12){
+  print(table(complete.cases(train[,i])))
+}
+```
+177 ages missing in train
+
+```{r}
+for (i in 1:12){
+  print(table(complete.cases(test[,i])))
+}
+```
+86 ages missing, 1 fare missing in test
+
+```{r}
+missmap(train,main = "missing values visualising")
+```
+
+```{r}
+train_data<-na.omit(train)
+train_data<-select(train_data,c(-1,-4,-9,-11))
+sum(!complete.cases(train_data))
+set.seed(419)
+```
+
+```{r}
+train_data<-filter(train_data,Embarked!="")
+```
+
+```{r}
+train_set<-train_data[sample(712,499),]
+cv_set<-train_data[-sample(712,499),]
+```
+
+# 3)CV and Logistic Regression
+```{r}
+mse1<-rep(0,7)
+
+model<-glm(Survived~Pclass,data = train_data,family = binomial(link='logit'))
+mse1[1]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex,data = train_data,family = binomial(link='logit'))
+mse1[2]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Age,data = train_data,family = binomial(link='logit'))
+mse1[3]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~SibSp,data = train_data,family = binomial(link='logit'))
+mse1[4]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Parch,data = train_data,family = binomial(link='logit'))
+mse1[5]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Fare,data = train_data,family = binomial(link='logit'))
+mse1[6]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Embarked,data = train_data,family = binomial(link='logit'))
+mse1[7]<-cv.glm(train_data,K=3,model)$delta[1]
+```
+```{r}
+mse1
+```
+Sex feature is the best base, mes is 0.1718
+
+
+```{r}
+mse2<-rep(0,6)
+
+model<-glm(Survived~Sex+Pclass,data = train_data,family = binomial(link='logit'))
+mse2[1]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Age,data = train_data,family = binomial(link='logit'))
+mse2[2]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+SibSp,data = train_data,family = binomial(link='logit'))
+mse2[3]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Parch,data = train_data,family = binomial(link='logit'))
+mse2[4]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Fare,data = train_data,family = binomial(link='logit'))
+mse2[5]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Embarked,data = train_data,family = binomial(link='logit'))
+mse2[6]<-cv.glm(train_data,K=3,model)$delta[1]
+```
+```{r}
+mse2
+```
+The second best is Pclass, reduce the mse to 0.1526
+
+```{r}
+mse3<-rep(0,5)
+
+model<-glm(Survived~Sex+Pclass+Age,data = train_data,family = binomial(link='logit'))
+mse3[1]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+SibSp,data = train_data,family = binomial(link='logit'))
+mse3[2]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Parch,data = train_data,family = binomial(link='logit'))
+mse3[3]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Fare,data = train_data,family = binomial(link='logit'))
+mse3[4]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Embarked,data = train_data,family = binomial(link='logit'))
+mse3[5]<-cv.glm(train_data,K=3,model)$delta[1]
+```
+```{r}
+mse3
+```
+The third best feature is Age, reduce the mse to 0.1452
+
+```{r}
+mse3<-rep(0,4)
+
+model<-glm(Survived~Sex+Pclass+Age+SibSp,data = train_data,family = binomial(link='logit'))
+mse4[1]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Age+Parch,data = train_data,family = binomial(link='logit'))
+mse4[2]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Age+Fare,data = train_data,family = binomial(link='logit'))
+mse4[3]<-cv.glm(train_data,K=3,model)$delta[1]
+
+model<-glm(Survived~Sex+Pclass+Age+Embarked,data = train_data,family = binomial(link='logit'))
+mse4[4]<-cv.glm(train_data,K=3,model)$delta[1]
+```
+```{r}
+mse4
+```
+No more features will reduce the mse
+
+```{r}
+selected_model<-glm(Survived~Pclass+Sex+SibSp,data = train_data,family = binomial(link='logit'))
+```
+
+```{r}
+test_data<-select(test,c(2,4,6))
+```
+```{r}
+predict(data = test_data,selected_model)
+```
+
+
+
+
